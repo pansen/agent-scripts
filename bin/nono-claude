@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+#
+# nono-claude — run Claude Code inside the nono sandbox.
+#
+# nono flags of note:
+#   -s                     run silently, without visual prompts
+#   --profile claude       nono's built-in permission set for Claude
+#   --allow-cwd            grant access to the current (Zed) project dir
+#   --env-credential …     inject a keychain secret into the env; here it
+#                          surfaces as CLAUDE_CODE_OAUTH_TOKEN.
+#                          https://nono.sh/docs/cli/features/credential-injection
+#
+# The credential was stored once via:
+#   security add-generic-password -s "nono" -a "claude_code_oauth_token" -w "..."
+
+set -euo pipefail
+# set -x
+
+CLAUDE_CONFIG_NAME=.claude
+export CLAUDE_CONFIG_DIR="$HOME/$CLAUDE_CONFIG_NAME"
+
+
+# Log each invocation (time + args) for debugging.
+echo "[$(date)] nono wrapper triggered with args: $*" \
+  >> "$HOME/Library/Logs/nono-claude-debug.log"
+
+# --- Sandbox grants -------------------------------------------------------
+# The tooling grants live in nono-sandbox.bash, shared with the other nono-*
+# wrappers, in ../libexec. Resolve this script's own directory (following
+# symlinks) to find it.
+self="${BASH_SOURCE[0]}"
+while [[ -L "$self" ]]; do
+  link="$(readlink "$self")"
+  [[ "$link" == /* ]] && self="$link" || self="$(dirname "$self")/$link"
+done
+source "$(cd "$(dirname "$self")/../libexec" && pwd)/nono-sandbox.bash"
+
+# Claude-specific: profile, keychain credential, config dirs.
+sandbox=(
+  "${nono_sandbox_common[@]}"
+  --profile claude
+  --env-credential claude_code_oauth_token
+  --allow "$HOME/$CLAUDE_CONFIG_NAME"
+  --allow "$HOME/private/$CLAUDE_CONFIG_NAME"
+)
+
+# Run via a login shell so claude is found on PATH inside the sandbox.
+exec nono run "${sandbox[@]}" -- bash -lc 'exec claude "$@"' bash "$@"

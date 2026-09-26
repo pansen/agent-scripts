@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+#
+# nono-agy — run the antigravity-clis inside the nono sandbox.
+#
+# nono flags of note:
+#   -s                     run silently, without visual prompts (from the
+#                          shared grant list)
+#   --allow-cwd            grant access to the current (Zed) project dir; the
+#                          level comes from the profile and defaults to
+#                          read-only, hence the extra --allow "$PWD" below
+#
+# There is no antigravity profile in the nono registry (claude, codex and opencode
+# are the only agent packages), so this runs on the conservative default one.
+
+set -euo pipefail
+# set -x
+
+log_file="$HOME/Library/Logs/nono-antigravity-debug.log"
+
+# Log each invocation (time + args + cwd) for debugging.
+echo "[$(date)] nono wrapper triggered with args: $*" >> "$log_file"
+pwd >> "$log_file"
+
+mkdir -p "$HOME/.antigravity"
+
+# --- Sandbox grants -------------------------------------------------------
+# The tooling grants live in nono-sandbox.bash, shared with the other nono-*
+# wrappers, in ../libexec. Resolve this script's own directory (following
+# symlinks) to find it.
+self="${BASH_SOURCE[0]}"
+while [[ -L "$self" ]]; do
+  link="$(readlink "$self")"
+  [[ "$link" == /* ]] && self="$link" || self="$(dirname "$self")/$link"
+done
+source "$(cd "$(dirname "$self")/../libexec" && pwd)/nono-sandbox.bash"
+
+# antigravity-specific: project dir and its config dirs.
+sandbox=(
+  "${nono_sandbox_common[@]}"
+  # No profile means --allow-cwd is read-only; make the project writable.
+  --allow "$PWD"
+  --allow "$HOME/.antigravity"
+  --allow "$HOME/.config/antigravity"
+  --allow "$HOME/.gemini"
+  --allow "$HOME/Library/Caches"
+
+  # nvm-installed node versions.
+  --read "$HOME/.nvm/versions/node/"
+)
+
+exec nono run "${sandbox[@]}" -- agy "$@" 2>> "$log_file"

@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+#
+# nono-codex — run the Codex CLI inside the nono sandbox, interactively in a
+# terminal. Installed via:
+#   brew install --cask codex
+#
+# See nono-codex-acp for the ACP bridge that Zed drives instead; the two share
+# their grants through nono-sandbox.bash and differ only in the binary they run.
+#
+# nono flags of note:
+#   -s                     run silently, without visual prompts (from the
+#                          shared grant list)
+#   --profile codex        the permission set for Codex
+#   --allow-cwd            grant access to the current project dir
+#
+# Codex authenticates from ~/.codex, so there is no keychain credential to
+# inject here (contrast nono-claude, which gets an OAuth token from nono).
+
+# nono is the OS sandbox; avoid nested macOS Seatbelt initialization.
+export INITIAL_AGENT_MODE=agent-full-access
+
+set -euo pipefail
+# set -x
+
+CODEX_CONFIG_NAME=.codex
+
+# Log each invocation (time + args) for debugging.
+echo "[$(date)] nono wrapper triggered with args: $*" \
+  >> "$HOME/Library/Logs/nono-codex-debug.log"
+
+# --- TLS trust ------------------------------------------------------------
+# nono's deny_keychains_macos group blocks ~/Library/Keychains and
+# /Library/Keychains, and the codex profile has no bypass_protection for them
+# (the claude profile does). Codex verifies TLS through the macOS Security
+# framework, so with the trust settings unreadable its root store comes up
+# empty and every server cert is rejected as "UnknownIssuer", chatgpt.com
+# included. A PEM root bundle sidesteps the keychain entirely.
+for ca in /opt/homebrew/etc/ca-certificates/cert.pem /etc/ssl/cert.pem; do
+  if [[ -r "$ca" ]]; then
+    export CODEX_CA_CERTIFICATE="$ca"
+    break
+  fi
+done
+
+# --- Sandbox grants -------------------------------------------------------
+# The tooling grants live in nono-sandbox.bash, shared with the other nono-*
+# wrappers, in ../libexec. Resolve this script's own directory (following
+# symlinks) to find it.
+self="${BASH_SOURCE[0]}"
+while [[ -L "$self" ]]; do
+  link="$(readlink "$self")"
+  [[ "$link" == /* ]] && self="$link" || self="$(dirname "$self")/$link"
+done
+source "$(cd "$(dirname "$self")/../libexec" && pwd)/nono-sandbox.bash"
+
+# Codex-specific: profile and config dirs.
+sandbox=(
+  "${nono_sandbox_common[@]}"
+  --profile codex
+  --allow "$HOME/$CODEX_CONFIG_NAME"
+  --allow "$HOME/private/$CODEX_CONFIG_NAME"
+)
+
+# The bundle sits under a path the profile already reads; grant it explicitly so
+# the wrapper does not depend on that staying true.
+if [[ -n "${CODEX_CA_CERTIFICATE:-}" ]]; then
+  sandbox+=(--read-file "$CODEX_CA_CERTIFICATE")
+fi
+
+exec nono run "${sandbox[@]}" -- codex \
+    --approve-for-me \
+    "$@"

@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+#
+# nono-opencode — run opencode inside the nono sandbox.
+#
+# nono flags of note:
+#   -s                     run silently, without visual prompts (from the
+#                          shared grant list)
+#   --profile opencode     nono's built-in permission set for opencode
+#   --allow-cwd            grant access to the current (Zed) project dir
+#   --suppress-save-prompt silence save-profile prompts for a path; it grants
+#                          nothing, it only stops nono from asking
+#   --no-rollback          skip the filesystem snapshot/rollback machinery
+#
+# opencode carries its own API keys in ~/.opencode, so nothing is injected
+# from the keychain here (contrast nono-claude).
+
+set -euo pipefail
+# set -x
+
+log_file="$HOME/Library/Logs/nono-opencode-debug.log"
+
+# Log each invocation (time + args) for debugging.
+echo "[$(date)] nono wrapper triggered with args: $*" >> "$log_file"
+
+# opencode's XDG dirs must exist before launch: the profile grants each
+# directory, but not the ~/.local parents, so the sandboxed process cannot
+# create them itself (~/.cache/opencode works only because ~/.cache is granted
+# wholesale). Add any further opencode dir here if it EPERMs on mkdir.
+mkdir -p "$HOME/.local/share/opencode" "$HOME/.local/state/opencode"
+
+# --- Sandbox grants -------------------------------------------------------
+# The tooling grants live in nono-sandbox.bash, shared with the other nono-*
+# wrappers, in ../libexec. Resolve this script's own directory (following
+# symlinks) to find it.
+self="${BASH_SOURCE[0]}"
+while [[ -L "$self" ]]; do
+  link="$(readlink "$self")"
+  [[ "$link" == /* ]] && self="$link" || self="$(dirname "$self")/$link"
+done
+source "$(cd "$(dirname "$self")/../libexec" && pwd)/nono-sandbox.bash"
+
+# opencode-specific: profile, config dir, npm cache, TUI state, and the
+# save-prompt suppressions for paths it habitually pokes at.
+sandbox=(
+  "${nono_sandbox_common[@]}"
+  --profile opencode
+  --allow "$HOME/.opencode"
+  --allow "$HOME/.npm"
+  --read "$HOME/.local/share/opentui"
+
+  --suppress-save-prompt "$HOME/.claude"
+  --suppress-save-prompt "$HOME/.sdkman"
+  --suppress-save-prompt "$HOME/Library/Keychains"
+  --suppress-save-prompt "$HOME/"
+  --suppress-save-prompt /Users
+
+  --no-rollback
+  --log-file "$log_file"
+)
+
+exec nono run "${sandbox[@]}" -- opencode "$@"

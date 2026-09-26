@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+#
+# nono-agy-acp — run the Antigravity ACP bridge so Zed can drive agy as an
+# agent, with every agy call going through nono-agy and thus the sandbox.
+# Bridge: https://github.com/shubzkothekar/antigravity-acp (release binary
+# agy-acp-darwin-arm64, placed in ../libexec relative to this script).
+#
+# Only agy is sandboxed; the bridge itself runs outside nono. It does not touch
+# the project, it only spawns agy, reads agy's conversation DBs from
+# ~/.gemini/antigravity-cli/conversations and keeps its state in ~/.agy-acp.
+# Running the bridge under nono too would nest one sandbox inside another.
+#
+# The bridge passes --dangerously-skip-permissions to agy on every prompt, so
+# the sandbox is the only thing between agy and the machine. Directories Zed
+# adds to the session (--add-dir) are not granted by nono-agy, only the cwd.
+#
+#   AGY_BIN            the agy the bridge spawns: nono-agy instead of plain agy
+#   AGY_SKIP_DOWNLOAD  never fetch an agy release from GitHub
+
+set -euo pipefail
+# set -x
+
+log_file="$HOME/Library/Logs/nono-antigravity-debug.log"
+
+# Log each invocation (time + args + cwd) for debugging.
+echo "[$(date)] nono-agy-acp wrapper triggered with args: $*" >> "$log_file"
+pwd >> "$log_file"
+
+# Resolve this script's own directory (following symlinks); nono-agy lives
+# next to it, the bridge binary in ../libexec.
+self="${BASH_SOURCE[0]}"
+while [[ -L "$self" ]]; do
+  link="$(readlink "$self")"
+  [[ "$link" == /* ]] && self="$link" || self="$(dirname "$self")/$link"
+done
+bin_dir="$(cd "$(dirname "$self")" && pwd)"
+libexec_dir="$(cd "$bin_dir/../libexec" && pwd)"
+
+# The bridge prefers an `agy` next to its own executable over $AGY_BIN. One
+# there would run unsandboxed, so refuse to start rather than bypass nono.
+if [[ -e "$libexec_dir/agy" ]]; then
+  echo "nono-agy-acp: $libexec_dir/agy would bypass the sandbox; remove it." >&2
+  exit 1
+fi
+
+export AGY_BIN="$bin_dir/nono-agy"
+export AGY_SKIP_DOWNLOAD=1
+
+exec "$libexec_dir/agy-acp-darwin-arm64" "$@"
