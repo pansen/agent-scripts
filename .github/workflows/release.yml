@@ -1,0 +1,103 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    # Only files that end up in the formula warrant a new release.
+    paths:
+      - "bin/**"
+      - "libexec/**"
+      - "packaging/**"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to re-publish (e.g. v2026.09.27.1405). Leave empty to release main.
+        required: false
+
+permissions:
+  contents: write
+
+# Serialize releases so two quick pushes don't race on the tap.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Tag and update Homebrew tap
+    runs-on: ubuntu-latest
+    steps:
+      # A dispatched run uses the template from main, so it can publish a tag
+      # that predates the template.
+      - name: Checkout this repo
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.sha }}
+
+      - name: Determine tag
+        id: tag
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${INPUT_TAG}" ]]; then
+            tag="${INPUT_TAG}"
+            gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" > /dev/null
+          else
+            # CalVer in UTC: YYYY.MM.DD.HHMM
+            tag="v$(date -u +%Y.%m.%d.%H%M)"
+            gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
+              -f ref="refs/tags/${tag}" \
+              -f sha="$(git rev-parse HEAD)" > /dev/null
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Compute formula values
+        id: vars
+        shell: bash
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          # GitHub's source archive for the tag is what the formula
+          # downloads, so hash exactly that.
+          url="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${TAG}.tar.gz"
+          sha256="$(curl -fsSL --retry 5 --retry-all-errors "$url" | sha256sum | cut -d' ' -f1)"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "sha256=${sha256}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout homebrew-tap
+        uses: actions/checkout@v7
+        with:
+          repository: pansen/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+
+      - name: Render formula
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tap/Formula
+          sed \
+            -e "s|__VERSION__|${{ steps.vars.outputs.version }}|g" \
+            -e "s|__SHA256__|${{ steps.vars.outputs.sha256 }}|" \
+            packaging/homebrew/agent-scripts.rb.tmpl > tap/Formula/agent-scripts.rb
+
+      - name: Commit and push
+        shell: bash
+        working-directory: tap
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/agent-scripts.rb
+          if git diff --cached --quiet; then
+            echo "No formula changes; skipping commit."
+            exit 0
+          fi
+          git commit -m "agent-scripts ${{ steps.vars.outputs.version }}"
+          git push origin HEAD:main
