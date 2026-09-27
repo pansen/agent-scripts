@@ -2,6 +2,12 @@
 
 [`nono`](https://github.com/nolabs-ai/nono) wrapper scripts for popular agents.
 
+## Installation
+
+```shell
+brew install pansen/tap/scripts
+```
+
 ## Zed Integration
 
 Once installed, Zed can be configured to use these wrappers easily. I made them nono sandboxed versions to have a name _ 🔐 ..._ to be on top of the agent provider list. Claude Code does not require this treatment, cause we can override the binary of the Zed extension via `CLAUDE_CODE_EXECUTABLE`.
