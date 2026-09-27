@@ -48,6 +48,7 @@ nono_sandbox_common=(
   # Read-only
   --read "$HOME/.config/tunmux"
   --read "$HOME/.cargo"
+  --read "$HOME/.config/gh"
   --read "$HOME/.config/k3d"
   --read "$HOME/.config/incus"
   --read /usr/local/libexec/container
