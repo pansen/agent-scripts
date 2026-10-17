@@ -36,6 +36,7 @@ nono_sandbox_common=(
   --allow "$HOME/.go"
   --allow "$HOME/.cargo/registry"
   --allow "$HOME/.mem0"
+  --allow "$HOME/.agents"
   --allow "$HOME/.local/state/mise"
   --allow "$HOME/.local/share/mise"
   --allow "/opt/homebrew/Library/Homebrew/vendor/bundle"
