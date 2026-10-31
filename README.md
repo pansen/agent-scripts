@@ -35,7 +35,6 @@ Once installed, Zed can be configured to use these wrappers easily. I made them 
       "env": {
         // https://code.claude.com/docs/en/env-vars
         "CLAUDE_CODE_EXECUTABLE": "nono-claude",
-        "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB": "1",
       },
     },
     "claude-agent-acp": {
@@ -43,7 +42,6 @@ Once installed, Zed can be configured to use these wrappers easily. I made them 
       "env": {
         // https://code.claude.com/docs/en/env-vars
         "CLAUDE_CODE_EXECUTABLE": "nono-claude",
-        "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB": "1",
       },
     },
     " 🔐 OpenCode-CLI": {
