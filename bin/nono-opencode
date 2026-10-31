@@ -5,7 +5,7 @@
 # nono flags of note:
 #   -s                     run silently, without visual prompts (from the
 #                          shared grant list)
-#   --profile opencode     nono's built-in permission set for opencode
+#   --profile nolabs-ai/opencode     nono's built-in permission set for opencode
 #   --allow-cwd            grant access to the current (Zed) project dir
 #   --suppress-save-prompt silence save-profile prompts for a path; it grants
 #                          nothing, it only stops nono from asking
@@ -43,7 +43,7 @@ source "$(cd "$(dirname "$self")/../libexec" && pwd)/nono-sandbox.bash"
 # save-prompt suppressions for paths it habitually pokes at.
 sandbox=(
   "${nono_sandbox_common[@]}"
-  --profile opencode
+  --profile nolabs-ai/opencode
   --allow "$HOME/.opencode"
   --allow "$HOME/.npm"
   --read "$HOME/.local/share/opentui"

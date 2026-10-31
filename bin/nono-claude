@@ -4,7 +4,7 @@
 #
 # nono flags of note:
 #   -s                     run silently, without visual prompts
-#   --profile claude       nono's built-in permission set for Claude
+#   --profile nolabs-ai/claude nono's built-in permission set for Claude
 #   --allow-cwd            grant access to the current (Zed) project dir
 #   --env-credential …     inject a keychain secret into the env; here it
 #                          surfaces as CLAUDE_CODE_OAUTH_TOKEN.
@@ -38,7 +38,7 @@ source "$(cd "$(dirname "$self")/../libexec" && pwd)/nono-sandbox.bash"
 # Claude-specific: profile, keychain credential, config dirs.
 sandbox=(
   "${nono_sandbox_common[@]}"
-  --profile claude
+  --profile nolabs-ai/claude
   --env-credential claude_code_oauth_token
   --allow "$HOME/$CLAUDE_CONFIG_NAME"
   --allow "$HOME/private/$CLAUDE_CONFIG_NAME"

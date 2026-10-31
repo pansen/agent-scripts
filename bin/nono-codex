@@ -10,7 +10,7 @@
 # nono flags of note:
 #   -s                     run silently, without visual prompts (from the
 #                          shared grant list)
-#   --profile codex        the permission set for Codex
+#   --profile nolabs-ai/codex        the permission set for Codex
 #   --allow-cwd            grant access to the current project dir
 #
 # Codex authenticates from ~/.codex, so there is no keychain credential to
@@ -56,7 +56,7 @@ source "$(cd "$(dirname "$self")/../libexec" && pwd)/nono-sandbox.bash"
 # Codex-specific: profile and config dirs.
 sandbox=(
   "${nono_sandbox_common[@]}"
-  --profile codex
+  --profile nolabs-ai/codex
   --allow "$HOME/$CODEX_CONFIG_NAME"
   --allow "$HOME/private/$CODEX_CONFIG_NAME"
 )
