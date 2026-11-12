@@ -32,6 +32,7 @@ nono_sandbox_common=(
   --allow "$HOME/.cache/huggingface"
   --allow "$HOME/.cache/pyright-python"
   --allow "$HOME/.dotnet"
+  --allow "$HOME/.nuget"
   --allow "$HOME/.yarn"
   --allow "$HOME/.npm"
   --allow "$HOME/.go"
