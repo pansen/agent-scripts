@@ -32,6 +32,7 @@ nono_sandbox_common=(
   --allow "$HOME/.cache/huggingface"
   --allow "$HOME/.cache/pyright-python"
   --allow "$HOME/.dotnet"
+  --allow "$HOME/.nuget"
   --allow "$HOME/.yarn"
   --allow "$HOME/.npm"
   --allow "$HOME/.go"
@@ -40,6 +41,7 @@ nono_sandbox_common=(
   --allow "$HOME/.agents"
   --allow "$HOME/.local/state/mise"
   --allow "$HOME/.local/share/mise"
+  --allow "$HOME/.local/share/NuGet"
   --allow "/opt/homebrew/Library/Homebrew/vendor/bundle"
 
   # App config & state (read+write)
